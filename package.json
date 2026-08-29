@@ -1,0 +1,21 @@
+{
+  "name": "linkedin-ops",
+  "version": "1.0.0",
+  "description": "High-reliability LinkedIn automation CLI and SDK with cross-process locking and isolated tab lifecycles",
+  "main": "index.mjs",
+  "type": "module",
+  "bin": {
+    "linkedin-ops": "./index.mjs"
+  },
+  "scripts": {
+    "test": "node index.mjs --help"
+  },
+  "keywords": [
+    "linkedin",
+    "cdp",
+    "automation",
+    "outreach"
+  ],
+  "author": "Karada AI",
+  "license": "MIT"
+}
