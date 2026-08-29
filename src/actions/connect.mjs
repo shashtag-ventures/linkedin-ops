@@ -165,11 +165,9 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
           const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
           if (setter) setter.call(ta, ${JSON.stringify(note)});
           else ta.value = ${JSON.stringify(note)};
+          ta.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+          ta.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
         }
-        ta.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-        ta.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-        ta.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
-        ta.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
         return ta.value.length > 0;
       }`);
 
@@ -197,7 +195,7 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
   console.log(`[Connect] Submitting connection invitation...`);
   let sent = false;
   for (let i = 0; i < 10; i++) {
-    sent = await cdp.evaluate(`() => {
+    const sendRes = await cdp.evaluate(`() => {
       const btns = Array.from(document.querySelectorAll('.artdeco-modal button, [role="dialog"] button, button'));
       const sendBtn = btns.find(b => {
         const t = (b.innerText || '').trim().toLowerCase();
@@ -205,13 +203,16 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
         return (t === 'send' || a.includes('send invitation') || a.includes('send now') || a === 'send') && !b.disabled && !b.classList.contains('artdeco-button--disabled');
       });
       if (sendBtn) {
-        sendBtn.click();
-        return true;
+        setTimeout(() => sendBtn.click(), 50);
+        return 'CLICKED';
       }
-      return false;
+      return 'NOT_FOUND';
     }`);
 
-    if (sent) break;
+    if (sendRes === 'CLICKED' || sendRes === undefined) {
+      sent = true;
+      break;
+    }
     await delay(800);
   }
 
