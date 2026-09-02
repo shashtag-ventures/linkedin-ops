@@ -53,16 +53,39 @@ export function createCDPClient(wsUrl) {
       });
     },
 
-    async evaluate(fnStrOrExpr, timeoutMs = 12000) {
-      const expression = fnStrOrExpr.trim().startsWith('()') || fnStrOrExpr.trim().startsWith('function')
-        ? `(${fnStrOrExpr})()`
-        : fnStrOrExpr;
+    async evaluate(fnStrOrExpr, ...args) {
+      let timeoutMs = 12000;
+      let fnArgs = [];
+
+      const trimmed = (typeof fnStrOrExpr === 'string' ? fnStrOrExpr : String(fnStrOrExpr)).trim();
+
+      if (args.length === 1 && typeof args[0] === 'number') {
+        timeoutMs = args[0];
+      } else if (args.length > 0) {
+        fnArgs = args;
+      }
+
+      let expression;
+      if (fnArgs.length > 0) {
+        expression = `(${trimmed})(${fnArgs.map(a => JSON.stringify(a)).join(', ')})`;
+      } else if (trimmed.endsWith(')()')) {
+        expression = trimmed;
+      } else if (trimmed.startsWith('()') || trimmed.startsWith('function') || trimmed.startsWith('async (')) {
+        expression = `(${trimmed})()`;
+      } else {
+        expression = trimmed;
+      }
       try {
         const res = await this.send('Runtime.evaluate', {
           expression,
           returnByValue: true,
           awaitPromise: true,
         }, timeoutMs);
+        if (res?.exceptionDetails) {
+          const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || 'Runtime evaluation error';
+          console.warn(`[CDP] ⚠️ Evaluation error: ${desc}`);
+          return undefined;
+        }
         return res?.result?.value;
       } catch (err) {
         if (err.message && (err.message.includes('navigated') || err.message.includes('closed') || err.message.includes('destroyed'))) {
