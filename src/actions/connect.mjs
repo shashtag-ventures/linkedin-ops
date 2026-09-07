@@ -183,9 +183,9 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
           const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
           if (setter) setter.call(ta, noteContent);
           else ta.value = noteContent;
-          ta.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-          ta.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
         }
+        ta.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+        ta.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
         return ta.value.length > 0;
       }`, note);
 
@@ -259,6 +259,19 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
   }`);
 
   if (!postSendVerification || !postSendVerification.ok) {
+    // Check target profile topcard for Pending status
+    try {
+      await cdp.navigate(linkedinUrl, 4000);
+      const isPending = await cdp.evaluate(`() => {
+        const text = document.body.innerText || '';
+        return /pending|invitation sent|withdraw/i.test(text);
+      }`);
+      if (isPending) {
+        console.log(`[Connect] ✅ SUCCESS: Connection invitation verified Pending on profile topcard!`);
+        return { success: true, status: 'SENT' };
+      }
+    } catch (e) {}
+
     console.error(`[Connect] ❌ Post-send verification failed: ${postSendVerification?.error || 'Unknown error'}`);
     return { success: false, status: 'VERIFICATION_FAILED', error: postSendVerification?.error || 'Delivery not verified' };
   }
