@@ -15,44 +15,57 @@ export async function sendDirectMessage(cdp, { linkedinUrl, message, send = fals
 
   // Find Message button on profile
   console.log(`[DM] Locating Message button...`);
-  const clickedMsg = await cdp.evaluate(`() => {
-    const btns = Array.from(document.querySelectorAll('main section button, div.ph5 button, button'));
+  const msgTarget = await cdp.evaluate(`() => {
+    const btns = Array.from(document.querySelectorAll('main section button, div.ph5 button, main section a, div.ph5 a, button, a'));
     const msgBtn = btns.find(b => {
       const t = (b.innerText || '').trim().toLowerCase();
       const a = (b.getAttribute('aria-label') || '').toLowerCase();
       return (t === 'message' || a.includes('message')) && !b.disabled;
     });
     if (msgBtn) {
+      if (msgBtn.tagName === 'A' && msgBtn.href) {
+        return { type: 'link', href: msgBtn.href };
+      }
       msgBtn.click();
-      return true;
+      return { type: 'button' };
     }
-    return false;
+    return null;
   }`);
 
-  if (!clickedMsg) {
+  if (!msgTarget) {
     console.warn(`[DM] ⚠️ Direct Message button not found (user might not be 1st connection or messaging locked).`);
     return { success: false, status: 'NO_MESSAGE_BUTTON', error: 'Message button not available' };
   }
 
-  await delay(2000);
+  if (msgTarget.type === 'link') {
+    await cdp.navigate(msgTarget.href, 3500);
+  } else {
+    await delay(2000);
+  }
 
-  // Type message into chat composer
+  // Type message into chat composer (with retry loop)
   console.log(`[DM] Typing message (${message.length} chars)...`);
-  const typed = await cdp.evaluate(`(text) => {
-    const composer = document.querySelector('.msg-form__contenteditable, [role="textbox"][contenteditable="true"], div.msg-form__msg-content-container--is-active [contenteditable="true"]');
-    if (!composer) return false;
-    composer.focus();
-    let inserted = false;
-    try {
-      inserted = document.execCommand('insertText', false, text);
-    } catch (e) {}
-    if (!inserted || !composer.innerText) {
-      composer.innerHTML = '<p>' + text.replace(/\\n/g, '<br>') + '</p>';
-    }
-    composer.dispatchEvent(new Event('input', { bubbles: true }));
-    composer.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }`, message);
+  let typed = false;
+  for (let i = 0; i < 10; i++) {
+    typed = await cdp.evaluate(`(text) => {
+      const composer = document.querySelector('.msg-form__contenteditable, [role="textbox"][contenteditable="true"], div.msg-form__msg-content-container--is-active [contenteditable="true"]');
+      if (!composer) return false;
+      composer.focus();
+      let inserted = false;
+      try {
+        inserted = document.execCommand('insertText', false, text);
+      } catch (e) {}
+      if (!inserted || !composer.innerText) {
+        composer.innerHTML = '<p>' + text.replace(/\\n/g, '<br>') + '</p>';
+      }
+      composer.dispatchEvent(new Event('input', { bubbles: true }));
+      composer.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }`, message);
+
+    if (typed) break;
+    await delay(1000);
+  }
 
   if (!typed) {
     console.error(`[DM] ❌ Could not locate message composer.`);
@@ -68,14 +81,19 @@ export async function sendDirectMessage(cdp, { linkedinUrl, message, send = fals
 
   // Click Send
   console.log(`[DM] Sending direct message...`);
-  const sent = await cdp.evaluate(`() => {
-    const sendBtn = document.querySelector('.msg-form__send-button, button[type="submit"].msg-form__send-btn');
-    if (sendBtn && !sendBtn.disabled) {
-      sendBtn.click();
-      return true;
-    }
-    return false;
-  }`);
+  let sent = false;
+  for (let i = 0; i < 8; i++) {
+    sent = await cdp.evaluate(`() => {
+      const sendBtn = document.querySelector('.msg-form__send-button, button[type="submit"].msg-form__send-btn, button[aria-label="Send now"], button[type="submit"]');
+      if (sendBtn && !sendBtn.disabled && !sendBtn.classList.contains('artdeco-button--disabled')) {
+        sendBtn.click();
+        return true;
+      }
+      return false;
+    }`);
+    if (sent) break;
+    await delay(800);
+  }
 
   if (sent) {
     await delay(2500);
