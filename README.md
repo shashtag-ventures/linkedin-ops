@@ -34,7 +34,7 @@ await withLock('outreach-task', async () => {
   await withDedicatedTab({ port: 9222 }, async (cdp) => {
     const result = await sendConnectionInvite(cdp, {
       linkedinUrl: 'https://www.linkedin.com/in/username',
-      note: 'Hello from Karada',
+      note: 'Hello from Karada.ai',
       send: true
     });
     console.log(result);
