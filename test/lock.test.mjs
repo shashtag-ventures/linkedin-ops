@@ -23,3 +23,21 @@ test('lock system lifecycle: acquire, inspect, release, and auto-cleanup', async
   assert.strictEqual(ran, true, 'withLock must execute body');
   assert.strictEqual(readLock(), null, 'Lock must be released after withLock');
 });
+
+test('acquireLock recovers immediately from empty or corrupted lock file', async () => {
+  forceReleaseLock();
+  const { writeFileSync, mkdirSync } = await import('node:fs');
+  const { LOCK_FILE, LOCK_DIR } = await import('../src/lock.mjs');
+  
+  mkdirSync(LOCK_DIR, { recursive: true });
+  writeFileSync(LOCK_FILE, '', 'utf8'); // 0-byte corrupt lock
+
+  // Should recover immediately rather than timing out after 60s
+  const start = Date.now();
+  const lock = await acquireLock('recovery-test', 3000);
+  const elapsed = Date.now() - start;
+
+  assert.ok(lock);
+  assert.ok(elapsed < 2500, `Expected instant recovery, took ${elapsed}ms`);
+  lock.release();
+});

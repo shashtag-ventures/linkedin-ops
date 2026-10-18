@@ -157,7 +157,10 @@ export function checkProfileLock(userDataDir) {
   }
 
   const lockPath = join(userDataDir, 'SingletonLock');
-  if (!existsSync(lockPath)) {
+  let stat;
+  try {
+    stat = lstatSync(lockPath);
+  } catch {
     return { isLocked: false, pid: null };
   }
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -82,6 +82,19 @@ test('checkProfileLock detects active and inactive SingletonLock', () => {
   writeFileSync(join(tempDir, 'SingletonLock'), '999999999', 'utf8');
   const inactiveState = checkProfileLock(tempDir);
   assert.strictEqual(inactiveState.isLocked, false);
+
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
+test('checkProfileLock detects active Chromium SingletonLock symlink', () => {
+  const tempDir = mkdtempSync(join(tmpdir(), 'chrome-symlink-test-'));
+  const lockPath = join(tempDir, 'SingletonLock');
+
+  // Chromium creates a dangling symlink target like "hostname-12345"
+  symlinkSync(`my-macbook-${process.pid}`, lockPath);
+  const lockedState = checkProfileLock(tempDir);
+  assert.strictEqual(lockedState.isLocked, true);
+  assert.strictEqual(lockedState.pid, process.pid);
 
   rmSync(tempDir, { recursive: true, force: true });
 });

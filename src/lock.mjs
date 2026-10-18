@@ -11,27 +11,30 @@ import { tmpdir } from 'os';
 
 export const CONFIG_FILE = resolve(process.cwd(), '.linkedin-opsrc');
 
-export function getConfigPath() {
-  return CONFIG_FILE;
+export function getConfigPath(customPath) {
+  return customPath || process.env.LINKEDIN_OPS_CONFIG || CONFIG_FILE;
 }
 
-export function loadConfig() {
+export function loadConfig(customPath) {
+  const file = getConfigPath(customPath);
   try {
-    if (existsSync(CONFIG_FILE)) {
-      return JSON.parse(readFileSync(CONFIG_FILE, 'utf8'));
+    if (existsSync(file)) {
+      return JSON.parse(readFileSync(file, 'utf8'));
     }
   } catch {}
   return {};
 }
 
-export function saveConfig(config) {
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+export function saveConfig(config, customPath) {
+  const file = getConfigPath(customPath);
+  writeFileSync(file, JSON.stringify(config, null, 2), 'utf8');
   return config;
 }
 
 // Store locks in OS temp or project .data to prevent ~/.config pollution
-const LOCK_DIR = resolve(tmpdir(), 'linkedin-ops-lock');
-const LOCK_FILE = resolve(LOCK_DIR, 'linkedin.lock');
+const uid = process.getuid ? process.getuid() : 'default';
+export const LOCK_DIR = resolve(tmpdir(), `linkedin-ops-lock-${uid}`);
+export const LOCK_FILE = resolve(LOCK_DIR, 'linkedin.lock');
 const DEFAULT_TIMEOUT_MS = 60000; // 60s max wait for lock
 const STALE_LOCK_MS = 90000; // 90s lock auto-expiration (if process crashed)
 
@@ -72,21 +75,26 @@ export async function acquireLock(taskName = 'linkedin-task', maxWaitMs = DEFAUL
   const startTime = Date.now();
 
   while (Date.now() - startTime < maxWaitMs) {
-    const existingLock = readLock();
+    if (existsSync(LOCK_FILE)) {
+      const existingLock = readLock();
 
-    if (existingLock) {
-      const now = Date.now();
-      const isStale = (now - existingLock.timestamp) > STALE_LOCK_MS;
-      const alive = existingLock.pid ? isProcessAlive(existingLock.pid) : false;
-
-      if (isStale || !alive) {
-        console.warn(`[Lock] ⚠️ Recovering stale/dead lock held by PID ${existingLock.pid} (${existingLock.task})`);
+      if (!existingLock) {
+        console.warn(`[Lock] ⚠️ Recovering corrupted/empty lock file left by crashed process`);
         forceReleaseLock();
       } else {
-        const elapsed = Math.round((now - existingLock.timestamp) / 1000);
-        console.log(`[Lock] ⏳ Waiting for lock held by PID ${existingLock.pid} (${existingLock.task}, running ${elapsed}s)...`);
-        await delay(1500);
-        continue;
+        const now = Date.now();
+        const isStale = (now - existingLock.timestamp) > STALE_LOCK_MS;
+        const alive = existingLock.pid ? isProcessAlive(existingLock.pid) : false;
+
+        if (isStale || !alive) {
+          console.warn(`[Lock] ⚠️ Recovering stale/dead lock held by PID ${existingLock.pid} (${existingLock.task})`);
+          forceReleaseLock();
+        } else {
+          const elapsed = Math.round((now - existingLock.timestamp) / 1000);
+          console.log(`[Lock] ⏳ Waiting for lock held by PID ${existingLock.pid} (${existingLock.task}, running ${elapsed}s)...`);
+          await delay(1500);
+          continue;
+        }
       }
     }
 

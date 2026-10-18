@@ -98,7 +98,8 @@ export async function runSetup(options = {}) {
       const answer = await promptQuestion(rl, 'Enter the full path to your Chrome executable: ');
       chromePath = answer.trim();
       if (!chromePath || !existsSync(chromePath)) {
-        throw new Error(`Chrome executable not found at: "${chromePath}"`);
+        console.error(`\n❌ Error: Chrome executable not found at: "${chromePath}"`);
+        return { success: false, error: 'CHROME_NOT_FOUND' };
       }
     }
     console.log(`  ✓ Found Chrome: ${chromePath}\n`);
@@ -164,7 +165,11 @@ export async function runSetup(options = {}) {
 
     // 4. One-Click Launcher
     console.log('[4/4] Generating convenient launcher...');
-    const launcherName = platform === 'win32' ? 'start-chrome.bat' : 'start-chrome.command';
+    const launcherName = platform === 'win32'
+      ? 'start-chrome.bat'
+      : platform === 'linux'
+      ? 'start-chrome.sh'
+      : 'start-chrome.command';
     const localLauncherPath = resolve(process.cwd(), launcherName);
     writeLauncherFile(platform, config, localLauncherPath);
     console.log(`  ✓ Created local launcher: ${launcherName}`);
@@ -185,6 +190,9 @@ export async function runSetup(options = {}) {
     console.log(`  node index.mjs doctor\n`);
 
     return { success: true, config };
+  } catch (err) {
+    console.error(`\n❌ Setup failed: ${err.message}`);
+    return { success: false, error: err.message };
   } finally {
     rl.close();
   }

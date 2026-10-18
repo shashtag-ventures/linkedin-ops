@@ -44,6 +44,7 @@ function parseArgs() {
     geo: '',
     limit: 25,
     json: false,
+    restartChrome: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -64,6 +65,8 @@ function parseArgs() {
       options.keepTab = true;
     } else if (arg === '--no-lock') {
       options.noLock = true;
+    } else if (arg === '--restart-chrome') {
+      options.restartChrome = true;
     } else if (arg.startsWith('--port=')) {
       options.cdpPort = parseInt(arg.split('=')[1].trim(), 10) || 9222;
     } else if (arg.startsWith('--company=')) {
@@ -110,6 +113,7 @@ OPTIONS:
   --json              Print the result as JSON on stdout; logs go to stderr
   --send              Live submit (default: false / dry-run)
   --port=<num>        Chrome CDP port (default: 9222)
+  --restart-chrome    Automatically restart Chrome on debug port if profile is locked
   --keep-tab          Do not close the tab when finished
   --no-lock           Bypass mutex lock (not recommended)
 
@@ -160,6 +164,7 @@ async function run() {
   const runWithExecution = async () => {
     return withDedicatedTab({
       port: options.cdpPort,
+      restartChrome: options.restartChrome,
       autoClose: !options.keepTab,
     }, async (cdp, target) => {
       if (options.command === 'connect') {

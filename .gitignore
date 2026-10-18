@@ -5,3 +5,7 @@ node_modules/
 .linkedin-opsrc
 batch-connect-*.mjs
 .superpowers/
+start-chrome.*
+*.command
+*.bat
+*.sh
