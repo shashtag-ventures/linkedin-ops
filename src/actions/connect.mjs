@@ -34,6 +34,10 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
 
   // 1. Initial State Check on custom-invite route
   const modalCheck = await cdp.evaluate(`() => {
+    const url = window.location.href.toLowerCase();
+    if (url.includes('/login') || url.includes('/checkpoint') || url.includes('/authwall') || url.includes('/signup')) {
+      return 'NOT_AUTHENTICATED';
+    }
     const text = document.body.innerText || '';
     if (text.includes('enter their email') || document.querySelector('input[type="email"], input#email')) return 'EMAIL_REQUIRED';
     if (text.includes('Pending') || text.includes('Withdraw') || text.includes('Invitation sent')) return 'ALREADY_PENDING';
@@ -52,6 +56,15 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
     
     return 'READY';
   }`);
+
+  if (modalCheck === 'NOT_AUTHENTICATED') {
+    console.warn(`[Connect] ❌ Not authenticated: Session redirected to login or authwall.`);
+    return {
+      success: false,
+      status: 'NOT_AUTHENTICATED',
+      error: 'Chrome is not logged into LinkedIn. Please log in on the opened browser window or run `node index.mjs setup`.',
+    };
+  }
 
   if (modalCheck === 'EMAIL_REQUIRED') {
     console.warn(`[Connect] ⚠️ Target requires email verification challenge to send invite.`);
@@ -79,12 +92,25 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
     await cdp.cleanOverlays();
 
     const topState = await cdp.evaluate(`() => {
+      const url = window.location.href.toLowerCase();
+      if (url.includes('/login') || url.includes('/checkpoint') || url.includes('/authwall') || url.includes('/signup')) {
+        return 'NOT_AUTHENTICATED';
+      }
       const top = document.querySelector('main section, div.ph5') || document.body;
       const text = top.innerText || '';
       if (text.includes('Pending') || text.includes('Withdraw') || text.includes('Invitation sent')) return 'ALREADY_PENDING';
       if (text.includes('1st') || text.includes('Remove connection')) return 'ALREADY_CONNECTED';
       return 'READY';
     }`);
+
+    if (topState === 'NOT_AUTHENTICATED') {
+      console.warn(`[Connect] ❌ Not authenticated: Profile redirected to login or authwall.`);
+      return {
+        success: false,
+        status: 'NOT_AUTHENTICATED',
+        error: 'Chrome is not logged into LinkedIn. Please log in on the opened browser window or run `node index.mjs setup`.',
+      };
+    }
 
     if (topState === 'ALREADY_PENDING') {
       console.log(`[Connect] ℹ️ Profile topcard shows already connected or pending.`);

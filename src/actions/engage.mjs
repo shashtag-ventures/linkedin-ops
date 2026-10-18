@@ -13,6 +13,23 @@ export async function submitComment(cdp, { postUrl, comment, send = false }) {
   await cdp.navigate(postUrl, 4000);
   await cdp.cleanOverlays();
 
+  const authCheck = await cdp.evaluate(`() => {
+    const url = window.location.href.toLowerCase();
+    if (url.includes('/login') || url.includes('/checkpoint') || url.includes('/authwall') || url.includes('/signup')) {
+      return false;
+    }
+    return true;
+  }`);
+
+  if (!authCheck) {
+    console.warn(`[Engage] ❌ Not authenticated: Session redirected to login or authwall.`);
+    return {
+      success: false,
+      status: 'NOT_AUTHENTICATED',
+      error: 'Chrome is not logged into LinkedIn. Please log in on the opened browser window or run `node index.mjs setup`.',
+    };
+  }
+
   console.log(`[Engage] Finding comment input...`);
   // Click Comment button or box
   await cdp.evaluate(`() => {

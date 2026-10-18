@@ -13,6 +13,23 @@ export async function sendDirectMessage(cdp, { linkedinUrl, message, send = fals
   await cdp.navigate(linkedinUrl, 4000);
   await cdp.cleanOverlays();
 
+  const authCheck = await cdp.evaluate(`() => {
+    const url = window.location.href.toLowerCase();
+    if (url.includes('/login') || url.includes('/checkpoint') || url.includes('/authwall') || url.includes('/signup')) {
+      return false;
+    }
+    return true;
+  }`);
+
+  if (!authCheck) {
+    console.warn(`[DM] ❌ Not authenticated: Session redirected to login or authwall.`);
+    return {
+      success: false,
+      status: 'NOT_AUTHENTICATED',
+      error: 'Chrome is not logged into LinkedIn. Please log in on the opened browser window or run `node index.mjs setup`.',
+    };
+  }
+
   // Find Message button on profile
   console.log(`[DM] Locating Message button...`);
   const msgTarget = await cdp.evaluate(`() => {
