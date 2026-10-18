@@ -8,6 +8,22 @@
 import { existsSync, readFileSync, readdirSync, readlinkSync, lstatSync } from 'fs';
 import { resolve, join } from 'path';
 import { homedir, platform as getOsPlatform } from 'os';
+import { spawn } from 'child_process';
+import { loadConfig } from './lock.mjs';
+
+/**
+ * Check if Chrome CDP HTTP endpoint is responding on the given port
+ */
+export async function checkCDPConnection(port = 9222) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Locate Chrome binary on the host operating system
@@ -174,4 +190,77 @@ export function checkProfileLock(userDataDir) {
   } catch {}
 
   return { isLocked: false, pid: null };
+}
+
+/**
+ * Ensure Chrome is running on debugging port, auto-launching if needed
+ */
+export async function ensureChromeRunning(options = {}) {
+  const port = options.port || 9222;
+  const isAlive = await checkCDPConnection(port);
+  if (isAlive) {
+    return { running: true, spawned: false };
+  }
+
+  if (options.autoSpawn === false) {
+    return { running: false, error: 'PORT_UNREACHABLE' };
+  }
+
+  const config = loadConfig();
+  const chromePath = options.chromePath || config.chromePath || getChromeBinaryPath();
+  const userDataDir = options.userDataDir || config.userDataDir || getSystemUserDataDir();
+  const profileDir = options.profileDir !== undefined ? options.profileDir : config.profileDir;
+
+  if (!chromePath || !existsSync(chromePath) || !userDataDir) {
+    return { running: false, error: 'NO_CONFIG' };
+  }
+
+  // Check if profile is locked by another Chrome instance without debugging
+  const lock = checkProfileLock(userDataDir);
+  if (lock.isLocked) {
+    if (options.restartChrome) {
+      try {
+        process.kill(lock.pid, 'SIGTERM');
+        await new Promise((r) => setTimeout(r, 1200));
+      } catch {}
+    } else {
+      return {
+        running: false,
+        error: 'PROFILE_LOCKED_WITHOUT_DEBUG',
+        pid: lock.pid,
+        userDataDir,
+      };
+    }
+  }
+
+  // Spawn Chrome detached with remote debugging
+  const args = [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${userDataDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+  ];
+  if (profileDir) {
+    args.push(`--profile-directory=${profileDir}`);
+  }
+
+  try {
+    const child = spawn(chromePath, args, {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+
+    // Poll for port readiness
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 300));
+      if (await checkCDPConnection(port)) {
+        return { running: true, spawned: true };
+      }
+    }
+  } catch (err) {
+    return { running: false, error: 'SPAWN_FAILED', details: err.message };
+  }
+
+  return { running: false, error: 'SPAWN_TIMEOUT' };
 }

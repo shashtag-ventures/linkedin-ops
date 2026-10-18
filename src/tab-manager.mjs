@@ -7,17 +7,9 @@
  */
 
 import { createCDPClient, delay } from './cdp.mjs';
+import { ensureChromeRunning, checkCDPConnection } from './browser-manager.mjs';
 
-export async function checkCDPConnection(port = 9222) {
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+export { checkCDPConnection };
 
 export async function createIsolatedTab(initialUrl = 'https://www.linkedin.com/feed/', port = 9222) {
   const url = initialUrl.startsWith('http') ? initialUrl : `https://${initialUrl}`;
@@ -56,9 +48,27 @@ export async function withDedicatedTab(options, fn) {
   const initialUrl = (typeof options === 'object' && options?.url) || 'https://www.linkedin.com/feed/';
   const autoClose = typeof options === 'object' && options?.autoClose !== undefined ? options.autoClose : true;
 
-  const isAlive = await checkCDPConnection(port);
-  if (!isAlive) {
-    throw new Error(`Chrome remote debugging is not reachable on http://127.0.0.1:${port}. Please launch Chrome with --remote-debugging-port=${port}`);
+  const status = await ensureChromeRunning({
+    port,
+    restartChrome: typeof options === 'object' ? options.restartChrome : false,
+  });
+
+  if (!status.running) {
+    if (status.error === 'PROFILE_LOCKED_WITHOUT_DEBUG') {
+      throw new Error(
+        `[Tab Manager] ❌ Chrome is currently running with your profile (PID ${status.pid}), but remote debugging is not enabled.\n\n` +
+        `To enable automation:\n` +
+        `  1. Close Chrome completely and re-run your command, or\n` +
+        `  2. Re-run with --restart-chrome to restart automatically, or\n` +
+        `  3. Run 'node index.mjs doctor' for diagnostics.`
+      );
+    }
+    throw new Error(
+      `[Tab Manager] ❌ Chrome remote debugging is not reachable on http://127.0.0.1:${port}.\n\n` +
+      `To configure or launch Chrome automatically:\n` +
+      `  node index.mjs setup\n\n` +
+      `Or launch Chrome manually using your launcher script, then re-run.`
+    );
   }
 
   console.log(`[Tab Manager] 📑 Opening dedicated isolated tab for task...`);
