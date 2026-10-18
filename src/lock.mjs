@@ -1,5 +1,5 @@
 /**
- * lock.mjs — Cross-Process Mutex Lock for LinkedIn Automation
+ * lock.mjs — Cross-Process Mutex Lock & Configuration for LinkedIn Automation
  * 
  * Guarantees serial execution across multiple agents and processes.
  * Prevents race conditions, focus-stealing, and account rate-limiting.
@@ -7,9 +7,30 @@
 
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
-import { homedir } from 'os';
+import { tmpdir } from 'os';
 
-const LOCK_DIR = resolve(homedir(), '.config', 'linkedin-ops');
+export const CONFIG_FILE = resolve(process.cwd(), '.linkedin-opsrc');
+
+export function getConfigPath() {
+  return CONFIG_FILE;
+}
+
+export function loadConfig() {
+  try {
+    if (existsSync(CONFIG_FILE)) {
+      return JSON.parse(readFileSync(CONFIG_FILE, 'utf8'));
+    }
+  } catch {}
+  return {};
+}
+
+export function saveConfig(config) {
+  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+  return config;
+}
+
+// Store locks in OS temp or project .data to prevent ~/.config pollution
+const LOCK_DIR = resolve(tmpdir(), 'linkedin-ops-lock');
 const LOCK_FILE = resolve(LOCK_DIR, 'linkedin.lock');
 const DEFAULT_TIMEOUT_MS = 60000; // 60s max wait for lock
 const STALE_LOCK_MS = 90000; // 90s lock auto-expiration (if process crashed)

@@ -2,3 +2,6 @@ node_modules/
 .data/
 .DS_Store
 *.log
+.linkedin-opsrc
+batch-connect-*.mjs
+.superpowers/
