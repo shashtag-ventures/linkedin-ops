@@ -246,6 +246,9 @@ export async function sendConnectionInvite(cdp, { linkedinUrl, note, send = fals
 
   const postSendVerification = await cdp.evaluate(`() => {
     const text = document.body.innerText || '';
+    if (text.includes('reached the daily invitation limit')) {
+      return { ok: false, error: 'DAILY_LIMIT_REACHED' };
+    }
     if (text.includes('reached the weekly invitation limit') || text.includes('Unable to send invitation')) {
       return { ok: false, error: 'WEEKLY_LIMIT_REACHED' };
     }

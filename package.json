@@ -8,7 +8,8 @@
     "linkedin-ops": "./index.mjs"
   },
   "scripts": {
-    "test": "node index.mjs --help"
+    "doctor": "node index.mjs doctor",
+    "test": "node --test test/*.test.mjs"
   },
   "keywords": [
     "linkedin",
