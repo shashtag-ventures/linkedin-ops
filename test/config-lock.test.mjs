@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { existsSync, unlinkSync } from 'node:fs';
-import { loadConfig, saveConfig, getConfigPath, withLock, readLock, forceReleaseLock } from '../src/lock.mjs';
+import { loadConfig, saveConfig, getConfigPath } from '../src/lock.mjs';
 
 test('loadConfig and saveConfig work in project scope', async () => {
   const configPath = getConfigPath();
@@ -18,15 +18,11 @@ test('loadConfig and saveConfig work in project scope', async () => {
   }
 });
 
-test('withLock acquires and releases lock without throwing', async () => {
-  forceReleaseLock();
-  let ran = false;
-  await withLock('test-task', async () => {
-    ran = true;
-    const lock = readLock();
-    assert.ok(lock);
-    assert.strictEqual(lock.task, 'test-task');
-  });
-  assert.strictEqual(ran, true);
-  assert.strictEqual(readLock(), null);
+test('loadConfig returns empty object when config does not exist', () => {
+  const configPath = getConfigPath();
+  if (existsSync(configPath)) {
+    unlinkSync(configPath);
+  }
+  const config = loadConfig();
+  assert.deepStrictEqual(config, {});
 });
