@@ -1,11 +1,31 @@
+# Dependencies & System OS
 node_modules/
-.data/
 .DS_Store
 *.log
+
+# User Configuration & Local Chrome Launchers (never committed)
 .linkedin-opsrc
-batch-connect-*.mjs
-.superpowers/
 start-chrome.*
 *.command
 *.bat
 *.sh
+.data/
+
+# User Layer Data & Outputs (never committed)
+data/*
+!data/.gitkeep
+
+# User Outreach Campaigns (keep template example, ignore user scripts)
+campaigns/*
+!campaigns/.gitkeep
+!campaigns/*.example.mjs
+
+# User Scratch & Debug Scripts
+scratch/*
+!scratch/.gitkeep
+
+# Legacy root user scripts (safeguard)
+batch-connect-*.mjs
+harvest-*.mjs
+sweep-*.mjs
+test-inspect-*.mjs

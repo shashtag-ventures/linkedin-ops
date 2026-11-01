@@ -242,6 +242,12 @@ export {
 };
 
 // Auto-run if executed from CLI
-if (process.argv[1] && process.argv[1].endsWith('index.mjs')) {
+const isCli = process.argv[1] && (
+  process.argv[1].endsWith('index.mjs') ||
+  process.argv[1].endsWith('linkedin-ops') ||
+  process.argv[1].includes('/.bin/linkedin-ops')
+);
+
+if (isCli) {
   run();
 }

@@ -1,6 +1,6 @@
 # linkedin-ops Public Release & Chrome Setup Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Engineering Execution Plan**: Track progress and verified milestones using task checkboxes.
 
 **Goal:** Build a zero-friction cross-platform Chrome setup wizard and runtime browser manager for `linkedin-ops` and sanitize the repository for public GitHub release.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js (ESM), Chrome DevTools Protocol (CDP), Native `readline`, `child_process`, `fs`.
 
-**Spec:** `docs/superpowers/specs/2026-10-18-public-release-setup-design.md`
+**Spec:** `docs/specs/2026-10-18-chrome-setup-and-runtime-cdp.md`
 
 ## Global Constraints
 

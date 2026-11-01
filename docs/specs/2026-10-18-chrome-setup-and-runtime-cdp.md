@@ -1,7 +1,7 @@
 # linkedin-ops Public Release & Chrome Setup Architecture Design
 
 **Date:** 2026-10-18  
-**Author:** Antigravity & Shashwat Gupta  
+**Author:** Karada.ai & Core Contributors  
 **Status:** Approved  
 **Repository:** `https://github.com/shashtag-ventures/linkedin-ops`
 
