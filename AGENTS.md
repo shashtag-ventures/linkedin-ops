@@ -8,7 +8,6 @@
 
 - **Design & Architecture Specs**: ALWAYS save to `docs/specs/YYYY-MM-DD-<topic>-design.md`.
 - **Execution & Implementation Plans**: ALWAYS save to `docs/plans/YYYY-MM-DD-<feature-name>.md`.
-- **Banned Directories**: NEVER create or write to `docs/superpowers/` or `.superpowers/`.
 
 ---
 
